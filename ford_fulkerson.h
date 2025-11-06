@@ -2,13 +2,10 @@
 #define FORD_FULKERSON
 
 #include <stack>
+#include <climits>
 
 int* find_path(const AdjacencyMatrix* residual_capacity, int numNodes, int source, int sink, bool print_progress=false){
     // Use depth first search on the residual capacity matrix to find a path with available capacity
-
-    // delete the following two lines when you are ready to start implementing this function
-    std::cout << "find_path not implemented" << std::endl;
-    return NULL;
 
     // track which nodes have been visited using an array of booleans
     bool* visited = new bool[numNodes];
@@ -36,14 +33,17 @@ int* find_path(const AdjacencyMatrix* residual_capacity, int numNodes, int sourc
     while (!to_visit.empty()){
         // TO DO: remove a node from to_visit (which is a stack), store to current
         // YOUR CODE HERE
+        current = to_visit.top();
+        to_visit.pop();
 
         if (!visited[current]){
             // TO DO: mark current as visited
             // YOUR CODE HERE
+            visited[current] = true;
 
             for (node = 0; node < numNodes; node++){        // iterate through the current column of residual matrix, to find all neighbors
                 // TO DO: get the weight of the edge from current to node in the adjacency matrix &residual_capacity
-                edge_weight = 0;    // YOUR CODE HERE - EDIT THIS LINE
+                edge_weight = residual_capacity->get_weight(current, node);    // YOUR CODE HERE - EDIT THIS LINE
 
                 if (edge_weight != 0 && !visited[node]){            // if we find a neighbor that hasn't been visited
                     
@@ -54,7 +54,8 @@ int* find_path(const AdjacencyMatrix* residual_capacity, int numNodes, int sourc
 
                     // TO DO: add the neighbor to to_visit, set prev[node] to be current (prev will be used to reconstruct the path)
                     // YOUR CODE HERE
-                    
+                    to_visit.push(node);
+                    prev[node] = current;
 
                     // if we found the sink, we've found a path, and we're done
                     if (node == sink){
@@ -106,10 +107,6 @@ int* find_path(const AdjacencyMatrix* residual_capacity, int numNodes, int sourc
 int find_new_flow(const int* path, const AdjacencyMatrix* residual_capacity, int numNodes, int source, int sink, bool print_progress=false){
     // find and return the minimum available capacity of edges along the path
 
-    // delete the following two lines when you are ready to start implementing this function
-    std::cout << "find_new_flow not implemented" << std::endl;
-    return 0;
-
     // if path is NULL (so, a call to find_path did not successfully find a path)
     if (path == NULL)
         return 0;
@@ -124,8 +121,8 @@ int find_new_flow(const int* path, const AdjacencyMatrix* residual_capacity, int
     // repeat until we reach the sink (end of path)
     while (current_node != sink){
         // TO DO: update next_node to be the next node along the path (note that current_node is path[i]). Get the weight of the edge from current_node to next_node.
-        next_node = 0;      // YOUR CODE HERE - EDIT THIS LINE
-        edge_weight = 0;    // YOUR CODE HERE - EDIT THIS LINE
+        next_node = path[i+1];      // YOUR CODE HERE - EDIT THIS LINE
+        edge_weight = residual_capacity->get_weight(current_node, next_node);    // YOUR CODE HERE - EDIT THIS LINE
         
         // report the weight of the edge
         if (print_progress){
@@ -134,6 +131,9 @@ int find_new_flow(const int* path, const AdjacencyMatrix* residual_capacity, int
 
         // TO DO: if the edge_weight is less than new_flow, update new_flow
         // YOUR CODE HERE
+        if (edge_weight < new_flow){
+            new_flow = edge_weight;
+        }
 
         // go to the next node along the path
         i++;
@@ -146,10 +146,6 @@ int find_new_flow(const int* path, const AdjacencyMatrix* residual_capacity, int
 
 int ford_fulkerson(const AdjacencyMatrix* capacity, int numNodes, int source, int sink, bool print_progress=false){
     // find and return the maximum flow that can go through a flow network with capacity (argument), from source to sink
-
-    // delete the following two lines when you are ready to start implementing this function
-    std::cout << "ford_fulkerson not implemented" << std::endl;
-    return 0;
 
     // initialize flow matrix with 0 flow on all edges
     AdjacencyMatrix flow(numNodes);
@@ -179,7 +175,7 @@ int ford_fulkerson(const AdjacencyMatrix* capacity, int numNodes, int source, in
     }
 
     // TO DO: call the function find_path to find a path from source to sink with available capacity 
-    int* next_path = NULL;      // YOUR CODE HERE - EDIT THIS LINE
+    int* next_path = find_path(&residual_capacity, numNodes, source, sink, print_progress);      // YOUR CODE HERE - EDIT THIS LINE
 
     // declare variables we'll use in the loop
     int new_flow, current_node, next_node, edge_weight;
@@ -188,9 +184,10 @@ int ford_fulkerson(const AdjacencyMatrix* capacity, int numNodes, int source, in
     while (next_path != NULL){                          
 
         // TO DO: use find_new_flow to find the flow that we can push along this path
-        new_flow = 0;       // YOUR CODE HERE - EDIT THIS LINE
+        new_flow = find_new_flow(next_path, &residual_capacity, numNodes, source, sink, print_progress);       // YOUR CODE HERE - EDIT THIS LINE
 
         // TO DO: add new flow to max flow
+        max_flow += new_flow;
 
         //update flow and residual capacity for each edge on path
         int i = 0;              // start at the source (beginning of the path)
@@ -201,13 +198,19 @@ int ford_fulkerson(const AdjacencyMatrix* capacity, int numNodes, int source, in
 
             // TO DO: update the flow along edge from current_node to next_node, as well as the reverse edge. You will need to use the adjacency matrix methods get_weight and set_weight.
             // YOUR CODE HERE
-            
+            int fwd_flow = flow.get_weight(current_node, next_node);
+            int rev_flow = flow.get_weight(next_node, current_node);
+            flow.set_weight(current_node, next_node, fwd_flow + new_flow);
+            flow.set_weight(next_node, current_node, rev_flow - new_flow);
 
 
 
             // TO DO: update residual capacity matrix. Note that there are only two entries to update, so don't recompute the entire matrix.
             // YOUR CODE HERE
-            
+            int fwd_res = residual_capacity.get_weight(current_node, next_node);
+            int rev_res = residual_capacity.get_weight(next_node, current_node);
+            residual_capacity.set_weight(current_node, next_node, fwd_res - new_flow);
+            residual_capacity.set_weight(next_node, current_node, rev_res + new_flow);
 
 
 
@@ -238,10 +241,10 @@ int ford_fulkerson(const AdjacencyMatrix* capacity, int numNodes, int source, in
         }
 
         // delete dynamically allocated array for the path we just used
-        delete[] path;
+        delete[] next_path;
 
         // TO DO: call the function find_path to find a path from source to sink with available capacity. IMPORTANT: what matrix should you call this on? 
-        next_path = NULL;       // YOUR CODE HERE - EDIT THIS LINE      
+        next_path = find_path(&residual_capacity, numNodes, source, sink, print_progress);      // YOUR CODE HERE - EDIT THIS LINE      
     }
 
     // report the capacity matrix (from the beginning), and the flow matrix that achieves the maximum flow.
